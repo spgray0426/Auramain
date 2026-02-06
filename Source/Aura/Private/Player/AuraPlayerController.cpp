@@ -22,9 +22,9 @@
 #include "Aura/Aura.h"
 #include "Components/DecalComponent.h"
 #include "Input/AuraInputComponent.h"
-#include "Interaction/EnemyInterface.h"
 #include "GameFramework/Character.h"
 #include "Interaction/HighlightInterface.h"
+#include "Player/AuraPlayerState.h"
 #include "UI/Widget/DamageTextComponent.h"
 
 AAuraPlayerController::AAuraPlayerController()
@@ -132,23 +132,12 @@ void AAuraPlayerController::CursorTrace()
 	}
 }
 
-/** 어빌리티 입력 키 눌림 - 타겟팅 상태 설정 */
+/** 어빌리티 입력 키 눌림 */
 void AAuraPlayerController::AbilityInputTagPressed(FGameplayTag InputTag)
 {
 	if (GetASC() && GetASC()->HasMatchingGameplayTag(FAuraGameplayTags::Get().Player_Block_InputPressed))
 	{
 		return;
-	}
-	if (InputTag.MatchesTagExact(FAuraGameplayTags::Get().InputTag_LMB))
-	{
-		if (IsValid(ThisActor))
-		{
-			TargetingStatus = ThisActor->Implements<UEnemyInterface>() ? ETargetingStatus::TargetingEnemy : ETargetingStatus::TargetingNonEnemy;
-		}
-		else
-		{
-			TargetingStatus = ETargetingStatus::NotTargeting;
-		}
 	}
 	if (GetASC()) GetASC()->AbilityInputTagPressed(InputTag);
 }
@@ -160,12 +149,6 @@ void AAuraPlayerController::AbilityInputTagReleased(FGameplayTag InputTag)
 	{
 		return;
 	}
-	if (!InputTag.MatchesTagExact(FAuraGameplayTags::Get().InputTag_LMB))
-	{
-		if (GetASC()) GetASC()->AbilityInputTagReleased(InputTag);
-		return;
-	}
-
 	if (GetASC()) GetASC()->AbilityInputTagReleased(InputTag);
 }
 
@@ -176,16 +159,7 @@ void AAuraPlayerController::AbilityInputTagHeld(FGameplayTag InputTag)
 	{
 		return;
 	}
-	if (!InputTag.MatchesTagExact(FAuraGameplayTags::Get().InputTag_LMB))
-	{
-		if (GetASC()) GetASC()->AbilityInputTagHeld(InputTag);
-		return;
-	}
-
-	if (TargetingStatus == ETargetingStatus::TargetingEnemy || bShiftKeyDown)
-	{
-		if (GetASC()) GetASC()->AbilityInputTagHeld(InputTag);
-	}
+	if (GetASC()) GetASC()->AbilityInputTagHeld(InputTag);
 }
 
 UAuraAbilitySystemComponent* AAuraPlayerController::GetASC()
@@ -246,5 +220,86 @@ void AAuraPlayerController::Move(const FInputActionValue& InputActionValue)
 	{
 		ControlledPawn->AddMovementInput(ForwardDirection, InputAxisVector.Y);
 		ControlledPawn->AddMovementInput(RightDirection, InputAxisVector.X);
+	}
+}
+
+// === 치트 콘솔 명령어 구현 ===
+
+void AAuraPlayerController::SetLevel(int32 InLevel)
+{
+	if (AAuraPlayerState* AuraPS = GetPlayerState<AAuraPlayerState>())
+	{
+		AuraPS->SetLevel(FMath::Max(1, InLevel));
+
+		// 어빌리티 상태 업데이트 (새 레벨에 맞는 스킬 해금)
+		if (UAuraAbilitySystemComponent* AuraASC = Cast<UAuraAbilitySystemComponent>(AuraPS->GetAbilitySystemComponent()))
+		{
+			AuraASC->UpdateAbilityStatuses(InLevel);
+		}
+
+		UE_LOG(LogTemp, Warning, TEXT("Level set to: %d"), InLevel);
+	}
+}
+
+void AAuraPlayerController::AddLevel(int32 InLevel)
+{
+	if (AAuraPlayerState* AuraPS = GetPlayerState<AAuraPlayerState>())
+	{
+		const int32 NewLevel = AuraPS->GetPlayerLevel() + InLevel;
+		SetLevel(NewLevel);
+	}
+}
+
+void AAuraPlayerController::SetSpellPoints(int32 InPoints)
+{
+	if (AAuraPlayerState* AuraPS = GetPlayerState<AAuraPlayerState>())
+	{
+		AuraPS->SetSpellPoints(FMath::Max(0, InPoints));
+		UE_LOG(LogTemp, Warning, TEXT("SpellPoints set to: %d"), InPoints);
+	}
+}
+
+void AAuraPlayerController::AddSpellPoints(int32 InPoints)
+{
+	if (AAuraPlayerState* AuraPS = GetPlayerState<AAuraPlayerState>())
+	{
+		AuraPS->AddToSpellPoints(InPoints);
+		UE_LOG(LogTemp, Warning, TEXT("SpellPoints: %d"), AuraPS->GetSpellPoints());
+	}
+}
+
+void AAuraPlayerController::SetAttributePoints(int32 InPoints)
+{
+	if (AAuraPlayerState* AuraPS = GetPlayerState<AAuraPlayerState>())
+	{
+		AuraPS->SetAttributePoints(FMath::Max(0, InPoints));
+		UE_LOG(LogTemp, Warning, TEXT("AttributePoints set to: %d"), InPoints);
+	}
+}
+
+void AAuraPlayerController::AddAttributePoints(int32 InPoints)
+{
+	if (AAuraPlayerState* AuraPS = GetPlayerState<AAuraPlayerState>())
+	{
+		AuraPS->AddToAttributePoints(InPoints);
+		UE_LOG(LogTemp, Warning, TEXT("AttributePoints: %d"), AuraPS->GetAttributePoints());
+	}
+}
+
+void AAuraPlayerController::SetXP(int32 InXP)
+{
+	if (AAuraPlayerState* AuraPS = GetPlayerState<AAuraPlayerState>())
+	{
+		AuraPS->SetXP(FMath::Max(0, InXP));
+		UE_LOG(LogTemp, Warning, TEXT("XP set to: %d"), InXP);
+	}
+}
+
+void AAuraPlayerController::AddXP(int32 InXP)
+{
+	if (AAuraPlayerState* AuraPS = GetPlayerState<AAuraPlayerState>())
+	{
+		AuraPS->AddToXP(InXP);
+		UE_LOG(LogTemp, Warning, TEXT("XP: %d"), AuraPS->GetXP());
 	}
 }

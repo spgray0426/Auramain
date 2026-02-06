@@ -18,17 +18,6 @@ class UAuraAbilitySystemComponent;
 class AMagicCircle;
 
 /**
- * ETargetingStatus
- * 현재 타게팅 상태를 나타내는 열거형
- */
-enum class ETargetingStatus : uint8
-{
-	TargetingEnemy,      // 적을 타게팅 중
-	TargetingNonEnemy,   // 적이 아닌 대상을 타게팅 중
-	NotTargeting         // 타게팅 하지 않음
-};
-
-/**
  * AAuraPlayerController
  * 플레이어 입력과 조작을 처리하는 컨트롤러 클래스
  * 마우스 커서, 이동, 어빌리티 입력 등을 담당합니다.
@@ -53,7 +42,41 @@ public:
 	UFUNCTION(BlueprintCallable)
 	void HideMagicCircle();
 
-	
+	// === 치트 콘솔 명령어 (개발용) ===
+	// 사용법: ` 키로 콘솔 열고 명령어 입력
+
+	// 레벨 설정: SetLevel 10
+	UFUNCTION(Exec)
+	void SetLevel(int32 InLevel);
+
+	// 레벨 추가: AddLevel 5
+	UFUNCTION(Exec)
+	void AddLevel(int32 InLevel);
+
+	// 스킬 포인트 설정: SetSpellPoints 10
+	UFUNCTION(Exec)
+	void SetSpellPoints(int32 InPoints);
+
+	// 스킬 포인트 추가: AddSpellPoints 5
+	UFUNCTION(Exec)
+	void AddSpellPoints(int32 InPoints);
+
+	// 속성 포인트 설정: SetAttributePoints 10
+	UFUNCTION(Exec)
+	void SetAttributePoints(int32 InPoints);
+
+	// 속성 포인트 추가: AddAttributePoints 5
+	UFUNCTION(Exec)
+	void AddAttributePoints(int32 InPoints);
+
+	// XP 설정: SetXP 1000
+	UFUNCTION(Exec)
+	void SetXP(int32 InXP);
+
+	// XP 추가: AddXP 500
+	UFUNCTION(Exec)
+	void AddXP(int32 InXP);
+
 protected:
 	virtual void BeginPlay() override;
 	virtual void SetupInputComponent() override;
@@ -102,10 +125,6 @@ private:
 
 	// 어빌리티 시스템 컴포넌트 가져오기
 	UAuraAbilitySystemComponent* GetASC();
-
-
-	// 현재 타게팅 상태
-	ETargetingStatus TargetingStatus = ETargetingStatus::NotTargeting;
 
 	// === UI 및 이펙트 시스템 ===
 	// 데미지 텍스트 컴포넌트 클래스
