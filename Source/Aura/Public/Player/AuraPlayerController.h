@@ -9,14 +9,12 @@
 
 
 class IHighlightInterface;
-class UNiagaraSystem;
 class UDamageTextComponent;
 class UInputMappingContext;
 class UInputAction;
 struct FInputActionValue;
 class UAuraInputConfig;
 class UAuraAbilitySystemComponent;
-class USplineComponent;
 class AMagicCircle;
 
 /**
@@ -106,27 +104,8 @@ private:
 	UAuraAbilitySystemComponent* GetASC();
 
 
-	// === 자동 이동 시스템 ===
-	FVector CachedDestination = FVector::ZeroVector;  // 목표 위치 캐시
-	float FollowTime = 0.f;  // 클릭 유지 시간
-	float ShortPressThreshold = 0.5f;  // 짧은 클릭 판정 임계값
-	bool bAutoRunning = false;  // 자동 이동 중인지 여부
-	ETargetingStatus TargetingStatus = ETargetingStatus::NotTargeting;  // 현재 타게팅 상태
-
-	// 자동 이동 도착 판정 반경
-	UPROPERTY(EditDefaultsOnly)
-	float AutoRunAcceptanceRadius = 50.f;
-
-	// 이동 경로를 표시하는 스플라인 컴포넌트
-	UPROPERTY(VisibleAnywhere)
-	TObjectPtr<USplineComponent> Spline;
-
-	// 클릭 시 재생되는 나이아가라 이펙트
-	UPROPERTY(EditDefaultsOnly)
-	TObjectPtr<UNiagaraSystem> ClickNiagaraSystem;
-
-	// 자동 이동 처리
-	void AutoRun();
+	// 현재 타게팅 상태
+	ETargetingStatus TargetingStatus = ETargetingStatus::NotTargeting;
 
 	// === UI 및 이펙트 시스템 ===
 	// 데미지 텍스트 컴포넌트 클래스

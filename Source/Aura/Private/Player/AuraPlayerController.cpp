@@ -6,7 +6,7 @@
  *
  * 탑다운 ARPG 스타일의 플레이어 입력 처리:
  * - 마우스 커서 트레이스 및 하이라이트
- * - 클릭 이동 (네비게이션 + 스플라인 기반)
+ * - 키보드 WASD 이동
  * - 어빌리티 입력 처리
  * - 매직 서클 표시
  * - 데미지 숫자 표시
@@ -17,33 +17,25 @@
 #include "AbilitySystemBlueprintLibrary.h"
 #include "AuraGameplayTags.h"
 #include "EnhancedInputSubsystems.h"
-#include "NavigationPath.h"
-#include "NavigationSystem.h"
-#include "NiagaraFunctionLibrary.h"
 #include "AbilitySystem/AuraAbilitySystemComponent.h"
 #include "Actor/MagicCircle.h"
 #include "Aura/Aura.h"
 #include "Components/DecalComponent.h"
-#include "Components/SplineComponent.h"
 #include "Input/AuraInputComponent.h"
 #include "Interaction/EnemyInterface.h"
 #include "GameFramework/Character.h"
 #include "Interaction/HighlightInterface.h"
 #include "UI/Widget/DamageTextComponent.h"
 
-/** 생성자 - 스플라인 컴포넌트 생성 */
 AAuraPlayerController::AAuraPlayerController()
 {
 	bReplicates = true;
-	Spline = CreateDefaultSubobject<USplineComponent>("Spline");
 }
 
-/** 매 프레임 - 커서 트레이스, 자동 이동, 매직 서클 업데이트 */
 void AAuraPlayerController::PlayerTick(float DeltaTime)
 {
 	Super::PlayerTick(DeltaTime);
 	CursorTrace();
-	AutoRun();
 	UpdateMagicCircleLocation();
 }
 
@@ -76,23 +68,6 @@ void AAuraPlayerController::ShowDamageNumber_Implementation(float DamageAmount, 
 		DamageText->AttachToComponent(TargetCharacter->GetRootComponent(), FAttachmentTransformRules::KeepRelativeTransform);
 		DamageText->DetachFromComponent(FDetachmentTransformRules::KeepWorldTransform);
 		DamageText->SetDamageText(DamageAmount, bBlockedHit, bCriticalHit);
-	}
-}
-
-void AAuraPlayerController::AutoRun()
-{
-	if (!bAutoRunning) return;
-	if (APawn* ControlledPawn = GetPawn())
-	{
-		const FVector LocationOnSpline = Spline->FindLocationClosestToWorldLocation(ControlledPawn->GetActorLocation(), ESplineCoordinateSpace::World);
-		const FVector Direction = Spline->FindDirectionClosestToWorldLocation(LocationOnSpline, ESplineCoordinateSpace::World);
-		ControlledPawn->AddMovementInput(Direction);
-
-		const float DistanceToDestination = (LocationOnSpline - CachedDestination).Length();
-		if (DistanceToDestination <= AutoRunAcceptanceRadius)
-		{
-			bAutoRunning = false;
-		}
 	}
 }
 
@@ -174,15 +149,11 @@ void AAuraPlayerController::AbilityInputTagPressed(FGameplayTag InputTag)
 		{
 			TargetingStatus = ETargetingStatus::NotTargeting;
 		}
-		bAutoRunning = false;
 	}
 	if (GetASC()) GetASC()->AbilityInputTagPressed(InputTag);
 }
 
-/**
- * 어빌리티 입력 키 해제
- * 적이 아닌 대상 클릭 시 클릭 이동 수행
- */
+/** 어빌리티 입력 키 해제 */
 void AAuraPlayerController::AbilityInputTagReleased(FGameplayTag InputTag)
 {
 	if (GetASC() && GetASC()->HasMatchingGameplayTag(FAuraGameplayTags::Get().Player_Block_InputReleased))
@@ -196,43 +167,9 @@ void AAuraPlayerController::AbilityInputTagReleased(FGameplayTag InputTag)
 	}
 
 	if (GetASC()) GetASC()->AbilityInputTagReleased(InputTag);
-	
-	if (TargetingStatus != ETargetingStatus::TargetingEnemy && !bShiftKeyDown)
-	{
-		const APawn* ControlledPawn = GetPawn();
-		if (FollowTime <= ShortPressThreshold && ControlledPawn)
-		{
-			if (IsValid(ThisActor) && ThisActor->Implements<UHighlightInterface>())
-			{
-				IHighlightInterface::Execute_SetMoveToLocation(ThisActor, CachedDestination);
-			}
-			else if (GetASC() && !GetASC()->HasMatchingGameplayTag(FAuraGameplayTags::Get().Player_Block_InputPressed))
-			{
-				UNiagaraFunctionLibrary::SpawnSystemAtLocation(this, ClickNiagaraSystem, CachedDestination);
-			}
-			if (UNavigationPath* NavPath = UNavigationSystemV1::FindPathToLocationSynchronously(this, ControlledPawn->GetActorLocation(), CachedDestination))
-			{
-				Spline->ClearSplinePoints();
-				for (const FVector& PointLoc : NavPath->PathPoints)
-				{
-					Spline->AddSplinePoint(PointLoc, ESplineCoordinateSpace::World);
-				}
-				if (NavPath->PathPoints.Num() > 0)
-				{
-					CachedDestination = NavPath->PathPoints[NavPath->PathPoints.Num() - 1];
-					bAutoRunning = true;
-				}
-			}
-		}
-		FollowTime = 0.f;
-		TargetingStatus = ETargetingStatus::NotTargeting;
-	}
 }
 
-/**
- * 어빌리티 입력 키 홀드
- * 적 타겟팅이면 어빌리티, 아니면 연속 이동
- */
+/** 어빌리티 입력 키 홀드 */
 void AAuraPlayerController::AbilityInputTagHeld(FGameplayTag InputTag)
 {
 	if (GetASC() && GetASC()->HasMatchingGameplayTag(FAuraGameplayTags::Get().Player_Block_InputHeld))
@@ -248,17 +185,6 @@ void AAuraPlayerController::AbilityInputTagHeld(FGameplayTag InputTag)
 	if (TargetingStatus == ETargetingStatus::TargetingEnemy || bShiftKeyDown)
 	{
 		if (GetASC()) GetASC()->AbilityInputTagHeld(InputTag);
-	}
-	else
-	{
-		FollowTime += GetWorld()->GetDeltaSeconds();
-		if (CursorHit.bBlockingHit) CachedDestination = CursorHit.ImpactPoint;
-
-		if (APawn* ControlledPawn = GetPawn())
-		{
-			const FVector WorldDirection = (CachedDestination - ControlledPawn->GetActorLocation()).GetSafeNormal();
-			ControlledPawn->AddMovementInput(WorldDirection);
-		}
 	}
 }
 
